@@ -43,9 +43,8 @@ LS증권 모의투자 API를 사용해 6개 섹터의 실시간 시세를 반영
   - LS증권 REST/WebSocket 연동
   - 섹터/종목 상태 메모리 보관
   - 정렬 및 집계 계산 수행
-- `packages/shared`
-  - 프론트/백엔드 공용 타입
-  - 섹터 ID, 표시 개수 상수, 포맷 유틸 계약
+
+초기 구현에서는 `packages/shared`를 두지 않는다. 현재 범위에서는 프론트가 백엔드 응답 계약을 기준으로 UI를 구현하면 충분하며, 공용 패키지는 타입/유틸 중복이 실제로 발생할 때만 도입한다.
 
 ## Deployment Assumption
 
@@ -68,12 +67,12 @@ LS증권 모의투자 API를 사용해 6개 섹터의 실시간 시세를 반영
 
 ```ts
 export const SECTOR_STOCKS = {
-  semiconductor: ["005930", "000660"],
-  shipbuilding: ["009540", "329180"],
-  defense: ["012450", "079550"],
-  biotech: ["207940", "068270"],
-  powerEquipment: ["010120", "272290"],
-  finance: ["105560", "055550"],
+  semiconductor: ['005930', '000660'],
+  shipbuilding: ['009540', '329180'],
+  defense: ['012450', '079550'],
+  biotech: ['207940', '068270'],
+  powerEquipment: ['010120', '272290'],
+  finance: ['105560', '055550'],
 } as const;
 ```
 
@@ -87,7 +86,7 @@ export const SECTOR_STOCKS = {
 ### Initial Load and Realtime
 
 1. 백엔드 시작 시 섹터별 종목코드 목록 로드
-2. LS증권 REST로 후보 종목 기본 시세를 1회 조회
+2. LS증권 REST로 후보 종목 기본 시세를 1회 조회해 초기 화면과 정렬 기준을 채움
 3. 메모리에 종목 상태 저장
 4. LS증권 WebSocket으로 후보 종목 실시간 시세 구독
 5. 실시간 수신값이 들어오면 메모리 상태만 갱신
@@ -97,7 +96,10 @@ export const SECTOR_STOCKS = {
 중요:
 
 - WebSocket 수신 후 LS증권 REST를 다시 호출하지 않는다.
-- REST는 초기 상태 보강과 재연결 복구용으로만 사용한다.
+- 프론트가 처음 접속했을 때 빈 카드가 보이지 않도록 초기 REST 조회는 기본 흐름에 포함한다.
+- LS증권 WebSocket 재연결 자체는 WebSocket으로 처리한다.
+- WebSocket 재연결 직후 상태가 오래되었거나 수신 누락이 의심될 때만 REST를 1회 재조회해 메모리 상태를 보정할 수 있다.
+- REST 보정은 실시간 틱마다 수행하는 로직이 아니라 예외적인 동기화 수단이다.
 
 ## In-Memory State
 
@@ -110,7 +112,7 @@ type MarketState = {
   sectors: SectorSnapshot[];
   stocksByCode: Record<string, StockRealtimeState>;
   lastUpdatedAt: string | null;
-  connectionStatus: "connecting" | "open" | "closed" | "error";
+  connectionStatus: 'connecting' | 'open' | 'closed' | 'error';
 };
 ```
 
@@ -126,7 +128,7 @@ type MarketState = {
 
 ### Within Sector
 
-- 각 섹터 후보 종목을 등락률 기준 내림차순 정렬
+- 각 섹터 내의 종목들을 등락률 기준 내림차순 정렬
 - 동률이면 거래대금 내림차순
 - 추가 동률이면 종목명 오름차순
 
@@ -165,19 +167,19 @@ export const SECTOR_SCORE_TOP_N = 3;
 ### Main Grid
 
 - 6개 섹터 카드
-- 2열 3행 배치
-- 데스크톱 해상도 우선
-- 좁은 화면에서는 1열 또는 2열 반응형으로 축소
+- 예시 PNG처럼 한 화면에서 카드 밀도가 높게 보이도록 배치
+- 데스크톱에서는 화면 폭에 따라 2열 또는 3열 반응형 그리드 사용
+- 좁은 화면에서는 1열 또는 2열로 자연스럽게 축소
 
 ### Sector Card
 
 - 헤더 좌측: 섹터명
-- 헤더 우측: 현재 노출 중인 종목 4개의 거래대금 합계
+- 헤더 우측: 현재 노출 중인 종목들의 거래대금 합계
 - 헤더 아래 첫 줄: 섹터 대표 뉴스 1건
   - LS증권 응답에 뉴스성 텍스트가 있으면 표시
   - 응답에 없으면 표시하지 않음
-- 종목 목록: 4개
-- 종목 1행은 예시처럼 강조 배경을 줄 수 있음
+- 종목 목록: 백엔드에서 받는 만큼
+- 반올림 했을 때 상한가(30%)에 도달한 행은 예시처럼 강조 배경(투명한 노란색)을 줄 수 있음
 
 ### Stock Row
 
@@ -187,9 +189,9 @@ export const SECTOR_SCORE_TOP_N = 3;
 - 현재가
 - 등락률
 - 거래대금
-- 수급/강도 느낌의 미니 바
+- 가로 캔들 차트
 
-바의 정확한 비즈니스 의미가 LS증권 데이터에서 바로 보장되지 않으면, 가용한 필드 기반으로 시각화하되 별도 계산 함수로 분리한다.
+가로 캔들 차트는 일반적인 캔들 차트처럼 당일 가격 범위를 압축해서 보여주는 장식적 시각 요소로 둔다. LS증권 응답에서 시가, 고가, 저가, 현재가를 받을 수 있으면 해당 값으로 계산한다. 초기 구현에서 해당 필드가 부족하면 전일대비와 등락률 기반의 단순 바를 사용하되, 계산 함수는 별도로 분리한다.
 
 ### Bottom Area
 
@@ -202,17 +204,21 @@ export const SECTOR_SCORE_TOP_N = 3;
 ### REST API
 
 - `GET /api/market`
-  - 현재 섹터 정렬 결과 전체 스냅샷 반환
+  - 프론트 최초 렌더용 현재 마켓 스냅샷 반환
+  - 서버가 계산한 섹터 정렬, 종목 정렬, 거래대금 합계를 포함
 - `GET /api/health`
-  - 서버 상태, LS증권 연결 상태 반환
+  - 배포/운영 확인 및 연결 상태 진단용
+  - 서버 기동 상태, LS증권 인증 상태, LS증권 WebSocket 연결 상태 반환
 
-REST는 초기 화면 렌더와 상태 확인만 담당한다.
+REST는 초기 화면 렌더와 상태 확인만 담당한다. 장중 실시간 갱신은 WebSocket으로 처리한다.
 
 ### WebSocket
 
-- 클라이언트 접속 시 최신 스냅샷 1회 전송
-- 이후 시세 반영 시 최신 정렬 결과 브로드캐스트
+- 클라이언트 접속 성공 시 현재 최신 스냅샷 1회 전송
+- 이후 LS증권 시세 수신으로 상태가 바뀌면 재계산된 최신 스냅샷 브로드캐스트
 - 메시지는 프론트가 그대로 렌더링 가능한 형태로 제공
+
+REST와 WebSocket이 모두 스냅샷을 보낼 수 있지만 용도가 다르다. `GET /api/market`은 페이지 첫 렌더를 빠르게 채우는 기본 경로이고, WebSocket의 접속 직후 스냅샷은 실시간 채널 연결 시점의 상태 동기화 용도다. 프론트는 더 최신 스냅샷을 받으면 기존 화면 상태를 덮어쓴다.
 
 ### LS Integration Layer
 
@@ -234,28 +240,30 @@ REST는 초기 화면 렌더와 상태 확인만 담당한다.
 
 프론트엔드는 계산보다 렌더링 책임에 집중한다. 정렬, 섹터 점수 계산, 총 거래대금 계산은 서버가 맡는다.
 
-## Suggested Shared Types
+## API Contract Example
 
 ```ts
-export type SectorId =
-  | "semiconductor"
-  | "shipbuilding"
-  | "defense"
-  | "biotech"
-  | "powerEquipment"
-  | "finance";
-
 export type StockViewModel = {
   code: string;
   name: string;
   price: number;
   changeRate: number;
   tradeValue: number;
-  barValue: number | null;
+  priceRange: {
+    open: number | null;
+    high: number | null;
+    low: number | null;
+  };
 };
 
 export type SectorViewModel = {
-  id: SectorId;
+  id:
+    | 'semiconductor'
+    | 'shipbuilding'
+    | 'defense'
+    | 'biotech'
+    | 'powerEquipment'
+    | 'finance';
   name: string;
   score: number;
   totalTradeValue: number;
@@ -266,9 +274,11 @@ export type SectorViewModel = {
 export type MarketSnapshot = {
   sectors: SectorViewModel[];
   lastUpdatedAt: string | null;
-  connectionStatus: "connecting" | "open" | "closed" | "error";
+  connectionStatus: 'connecting' | 'open' | 'closed' | 'error';
 };
 ```
+
+이 타입은 공유 패키지 정의가 아니라, 백엔드 응답 형태의 예시다. 구현 시 프론트는 이 계약을 기준으로 화면을 그린다.
 
 ## Configuration
 
@@ -285,9 +295,12 @@ export type MarketSnapshot = {
 
 - LS증권 인증 실패 시 `health` 엔드포인트에서 상태 노출
 - WebSocket 재연결 전략 필요
-- 일부 종목 데이터 누락 시 나머지 종목으로 카드 표시 유지
+- WebSocket 업데이트는 전체 목록 교체가 아니라 종목 단위 patch로 처리
+- 이미 메모리에 존재하는 종목은 새 WebSocket 이벤트가 오지 않아도 기존 값을 유지
+- 아직 초기 REST나 WebSocket으로 한 번도 값이 들어오지 않은 종목만 정렬/표시 대상에서 제외
+- 표시 가능한 종목 수가 카드 표시 개수보다 적을 때만 실제 수신된 종목 수만큼 표시
 - 뉴스 텍스트 누락은 허용
-- 섹터 후보군 중 일부 종목만 실시간 수신돼도 렌더는 가능해야 함
+- 일봉 스타일 미니 가격 바에 필요한 시가, 고가, 저가가 부족하면 미니 바를 숨기거나 단순 바 형태로 대체
 
 ## Testing Strategy
 
@@ -295,7 +308,6 @@ export type MarketSnapshot = {
 
 - 정렬 규칙 단위 테스트
 - 섹터 점수 계산 테스트
-- 총 거래대금 계산 테스트
 - 실시간 이벤트가 메모리 상태를 올바르게 갱신하는지 테스트
 - REST 응답 스냅샷 구조 테스트
 
@@ -309,7 +321,7 @@ export type MarketSnapshot = {
 ## Open Items
 
 - LS증권 응답에서 카드 첫 줄에 쓸 뉴스성 텍스트가 실제로 제공되는지 확인 필요
-- 미니 바 시각화에 사용할 원천 필드 확인 필요
+- 캔들 차트에 사용할 시가, 고가, 저가 필드 확인 필요
 - 각 섹터 후보 종목코드 최종 목록 확정 필요
 - 장 마감/휴장 상태 표현 여부는 구현 중 단순화 가능
 
