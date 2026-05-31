@@ -1,6 +1,8 @@
 :root {
   color: #14243a;
-  background: linear-gradient(180deg, #dce8ee 0%, #edf2f5 100%);
+  background:
+    linear-gradient(180deg, rgba(205, 224, 230, 0.85) 0%, rgba(240, 244, 246, 0.94) 100%),
+    linear-gradient(120deg, rgba(13, 189, 197, 0.08) 0%, rgba(255, 194, 82, 0.08) 100%);
   font-family: "IBM Plex Sans KR", "Pretendard", sans-serif;
 }
 
@@ -17,23 +19,252 @@ body {
   min-height: 100vh;
 }
 
-.app-shell {
+.market-page {
   min-height: 100vh;
   display: grid;
-  place-items: center;
+  grid-template-rows: auto 1fr auto;
+  gap: 1rem;
+  padding: 1rem;
 }
 
-.app-placeholder {
-  padding: 2rem 2.5rem;
-  border: 1px solid rgba(20, 36, 58, 0.1);
-  background: rgba(255, 255, 255, 0.78);
+.topbar {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0.25rem 0;
 }
 
-.app-placeholder h1 {
-  margin: 0 0 0.75rem;
-  font-size: 2rem;
+.brand {
+  color: #0dbdc5;
+  font-size: clamp(2rem, 3vw, 2.6rem);
+  font-weight: 700;
 }
 
-.app-placeholder p {
+.clock {
+  font-size: 1.1rem;
+}
+
+.status-pill {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.status-open {
+  color: #c6342d;
+}
+
+.status-connecting {
+  color: #15607f;
+}
+
+.status-error,
+.status-closed {
+  color: #26435e;
+}
+
+.sector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.9rem;
+  align-content: start;
+}
+
+.sector-card {
+  border: 1px solid rgba(102, 140, 155, 0.24);
+  border-radius: 8px;
+  background: rgba(250, 252, 252, 0.9);
+  box-shadow: 0 10px 22px rgba(84, 109, 118, 0.08);
+  overflow: hidden;
+}
+
+.sector-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.45rem 0.6rem;
+  background: linear-gradient(90deg, #08c2ca 0%, #20bcc2 100%);
+  color: #fff;
+  font-weight: 700;
+}
+
+.sector-trade {
+  padding: 0.12rem 0.42rem;
+  border-radius: 999px;
+  background: #fff3ea;
+  color: #ff523c;
+  font-size: 0.84rem;
+}
+
+.sector-headline {
   margin: 0;
+  padding: 0.6rem 0.75rem 0.35rem;
+  color: #3f5161;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sector-stocks {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0 0.45rem 0.45rem;
+}
+
+.stock-row {
+  padding: 0.5rem 0.45rem 0.35rem;
+  border-radius: 6px;
+  background: rgba(228, 238, 241, 0.64);
+}
+
+.stock-row-highlighted {
+  background: rgba(255, 238, 143, 0.75);
+}
+
+.stock-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.stock-copy,
+.stock-metrics {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.stock-metrics {
+  text-align: right;
+}
+
+.stock-name {
+  font-weight: 700;
+}
+
+.stock-price,
+.stock-trade,
+.stock-rate {
+  font-size: 0.96rem;
+}
+
+.stock-rate-up,
+.stock-price-up {
+  color: #e23b2b;
+}
+
+.stock-rate-down,
+.stock-price-down {
+  color: #2251d1;
+}
+
+.stock-rate-flat,
+.stock-price-flat {
+  color: #3f5161;
+}
+
+.candle-bar {
+  position: relative;
+  height: 14px;
+  margin-top: 0.4rem;
+}
+
+.candle-range {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(30, 64, 85, 0.25);
+}
+
+.candle-body {
+  position: absolute;
+  top: 3px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.candle-tick {
+  position: absolute;
+  top: 1px;
+  width: 2px;
+  height: 12px;
+  background: #152739;
+}
+
+.candle-bar-up .candle-body {
+  background: #fb2f21;
+}
+
+.candle-bar-down .candle-body {
+  background: #2b5ee8;
+}
+
+.candle-bar-flat .candle-body {
+  background: #64758a;
+}
+
+.candle-bar-fallback::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 6px;
+  height: 2px;
+  background: rgba(30, 64, 85, 0.35);
+}
+
+.bottom-ticker {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ticker-line {
+  padding: 0.7rem 0.9rem;
+  background: rgba(251, 236, 210, 0.92);
+  color: #5d5141;
+  font-size: 0.95rem;
+}
+
+.bottom-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.bottom-tab {
+  padding: 0.7rem 0.2rem;
+  text-align: center;
+  color: #6b7d8b;
+  background: rgba(216, 224, 236, 0.84);
+  font-size: 0.88rem;
+}
+
+.bottom-tab-active {
+  color: #0dbdc5;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+@media (max-width: 720px) {
+  .market-page {
+    padding: 0.75rem;
+  }
+
+  .topbar {
+    grid-template-columns: 1fr auto;
+  }
+
+  .clock {
+    justify-self: end;
+  }
+
+  .status-pill {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
 }
