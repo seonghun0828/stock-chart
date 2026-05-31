@@ -1,0 +1,39 @@
+:root {
+  color: #14243a;
+  background: linear-gradient(180deg, #dce8ee 0%, #edf2f5 100%);
+  font-family: "IBM Plex Sans KR", "Pretendard", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.app-placeholder {
+  padding: 2rem 2.5rem;
+  border: 1px solid rgba(20, 36, 58, 0.1);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.app-placeholder h1 {
+  margin: 0 0 0.75rem;
+  font-size: 2rem;
+}
+
+.app-placeholder p {
+  margin: 0;
+}
