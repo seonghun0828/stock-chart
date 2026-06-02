@@ -10,7 +10,7 @@ import { MarketService } from './services/market-service';
 
 const env = readEnv();
 const host = env.BACKEND_HOST;
-const port = Number(env.BACKEND_PORT);
+const port = Number(process.env.PORT ?? env.BACKEND_PORT);
 const fallbackTrackedStocks = getTrackedStocks();
 const state = createEmptyMarketState();
 const bootstrapClients = createLsClients(env);
