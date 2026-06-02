@@ -32,7 +32,13 @@ export default function App() {
 
     const socket = connectMarketSocket((nextSnapshot) => {
       if (isMounted) {
-        setSnapshot(nextSnapshot);
+        setSnapshot((current) => {
+          if (current.sectors.length > 0 && nextSnapshot.sectors.length === 0) {
+            return current;
+          }
+
+          return nextSnapshot;
+        });
       }
     });
 

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import type { MarketSnapshot } from '../types';
@@ -53,5 +53,29 @@ describe('App', () => {
 
     expect(await screen.findByText('반도체')).toBeInTheDocument();
     expect(await screen.findByText('삼성전자')).toBeInTheDocument();
+  });
+
+  it('does not replace a populated snapshot with an empty websocket snapshot', async () => {
+    let onSnapshot: ((snapshot: MarketSnapshot) => void) | undefined;
+    apiMocks.connectMarketSocket.mockImplementation((listener: (snapshot: MarketSnapshot) => void) => {
+      onSnapshot = listener;
+      return { close: vi.fn() };
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('반도체')).toBeInTheDocument();
+    expect(screen.getByText('삼성전자')).toBeInTheDocument();
+
+    act(() => {
+      onSnapshot?.({
+        connectionStatus: 'connecting',
+        lastUpdatedAt: null,
+        sectors: [],
+      });
+    });
+
+    expect(screen.getByText('반도체')).toBeInTheDocument();
+    expect(screen.getByText('삼성전자')).toBeInTheDocument();
   });
 });
