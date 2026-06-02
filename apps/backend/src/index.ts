@@ -26,8 +26,10 @@ const server = createServer(app);
 
 createMarketWebSocketServer(server, marketService);
 
-await marketService.connect(trackedStocks.map((stock) => stock.code));
-
 server.listen(port, host, () => {
   console.log(`backend listening on http://${host}:${port}`);
+
+  void marketService.connect(trackedStocks.map((stock) => stock.code)).catch((error) => {
+    console.error('market bootstrap failed', error);
+  });
 });

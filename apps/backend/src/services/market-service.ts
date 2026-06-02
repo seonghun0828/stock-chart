@@ -67,14 +67,23 @@ export class MarketService {
 
   async connect(codes: string[]) {
     this.state.connectionStatus = 'connecting';
-    const quotes = await this.restClient.fetchInitialQuotes(codes);
-    this.seed(quotes);
-    await this.realtimeClient.connect(codes, (patches) => {
-      this.applyRealtimePatch(patches);
-    });
-    this.state.connectionStatus = 'open';
-    this.state.lastUpdatedAt = new Date().toISOString();
     this.notify();
+
+    try {
+      const quotes = await this.restClient.fetchInitialQuotes(codes);
+      this.seed(quotes);
+      await this.realtimeClient.connect(codes, (patches) => {
+        this.applyRealtimePatch(patches);
+      });
+      this.state.connectionStatus = 'open';
+      this.state.lastUpdatedAt = new Date().toISOString();
+      this.notify();
+    } catch (error) {
+      this.state.connectionStatus = 'error';
+      this.state.lastUpdatedAt = new Date().toISOString();
+      this.notify();
+      throw error;
+    }
   }
 
   getState() {

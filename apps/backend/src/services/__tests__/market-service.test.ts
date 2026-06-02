@@ -14,6 +14,12 @@ class StubRealtimeClient implements LsRealtimeClient {
   async connect(): Promise<void> {}
 }
 
+class FailingRestClient implements LsRestClient {
+  async fetchInitialQuotes(): Promise<InitialQuote[]> {
+    throw new Error('seed failed');
+  }
+}
+
 function createQuotes(): InitialQuote[] {
   return [
     {
@@ -140,5 +146,15 @@ describe('MarketService', () => {
     const snapshot = service.getSnapshot();
     expect(snapshot.sectors[0].stocks.length).toBe(4);
     expect(snapshot.sectors[1].stocks.length).toBe(4);
+  });
+
+  it('marks the connection as error when the initial connect fails', async () => {
+    const service = new MarketService(
+      new FailingRestClient(),
+      new StubRealtimeClient(),
+    );
+
+    await expect(service.connect(['A1'])).rejects.toThrow('seed failed');
+    expect(service.getState().connectionStatus).toBe('error');
   });
 });
