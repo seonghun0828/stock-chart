@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createLsClients } from '../create-ls-clients';
+import { getTrackedStocks } from '../../config/sectors';
 
 describe('createLsClients', () => {
   it('returns mock clients when USE_MOCK_LS is true', () => {
@@ -12,9 +13,10 @@ describe('createLsClients', () => {
       LS_APP_SECRET: undefined,
       LS_BASE_URL: undefined,
       LS_WS_URL: undefined,
-    });
+    }, getTrackedStocks());
 
     expect(clients.restClient).toBeDefined();
     expect(clients.realtimeClient).toBeDefined();
+    expect(clients.sectorClient).toBeNull();
   });
 });

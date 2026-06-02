@@ -2,6 +2,12 @@ export const DISPLAY_STOCK_COUNT = 4;
 export const SECTOR_SCORE_TOP_N = 3;
 
 export type MarketCategory = 'kospi' | 'kosdaq';
+export type TrackedStock = {
+  code: string;
+  market?: MarketCategory;
+  sectorId: SectorId;
+  sectorName: string;
+};
 
 export const SECTOR_DEFINITIONS = [
   { id: 'semiconductor', name: '반도체' },
@@ -74,3 +80,20 @@ export function getTrackedStocks() {
     })),
   );
 }
+
+export const LS_THEME_CANDIDATES = {
+  semiconductor: [
+    '반도체 장비',
+    '반도체 재료/부품',
+    '반도체 대표주(생산)',
+    '시스템반도체',
+    '전력반도체',
+  ],
+  shipbuilding: ['조선', '조선기자재'],
+  defense: ['방위산업/전쟁 및 테러', '우주항공산업(누리호/인공위성 등)'],
+  biotech: ['바이오시밀러(복제 바이오의약품)', '제약업체'],
+  powerEquipment: ['전력설비', '전선', '스마트그리드(지능형전력망)'],
+  finance: ['증권', '은행', '손해보험', '생명보험', '인터넷은행'],
+} as const satisfies Record<SectorId, readonly string[]>;
+
+export const STARTUP_SECTOR_STOCK_LIMIT = 12;

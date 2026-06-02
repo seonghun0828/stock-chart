@@ -1,4 +1,4 @@
-import type { SectorId, MarketCategory } from '../config/sectors';
+import type { SectorId } from '../config/sectors';
 import { readEnv } from '../config/env';
 import type { InitialQuote } from './types';
 
@@ -8,7 +8,6 @@ export interface LsRestClient {
 
 type TrackedStockRef = {
   code: string;
-  market: MarketCategory;
   sectorId: SectorId;
   sectorName: string;
 };

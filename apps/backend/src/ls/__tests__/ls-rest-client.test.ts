@@ -20,7 +20,6 @@ describe('mapT1101ResponseToQuote', () => {
       },
       {
         code: '078020',
-        market: 'kospi',
         sectorId: 'finance',
         sectorName: '금융',
       },

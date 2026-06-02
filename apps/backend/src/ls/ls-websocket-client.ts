@@ -14,7 +14,7 @@ type TokenProvider = () => Promise<string>;
 
 type TrackedStockRef = {
   code: string;
-  market: MarketCategory;
+  market?: MarketCategory;
   sectorId: SectorId;
   sectorName: string;
 };
@@ -47,18 +47,17 @@ export class RealLsRealtimeClient implements LsRealtimeClient {
             continue;
           }
 
-          socket.send(
-            JSON.stringify({
-              header: {
-                token,
-                tr_type: '3',
-              },
-              body: {
-                tr_cd: tracked.market === 'kospi' ? 'S3_' : 'K3_',
-                tr_key: code,
-              },
-            }),
-          );
+          for (const request of buildRealtimeSubscriptionRequests(code, tracked)) {
+            socket.send(
+              JSON.stringify({
+                header: {
+                  token,
+                  tr_type: '3',
+                },
+                body: request,
+              }),
+            );
+          }
         }
         resolve();
       });
@@ -73,6 +72,24 @@ export class RealLsRealtimeClient implements LsRealtimeClient {
       socket.once('error', (error) => reject(error));
     });
   }
+}
+
+export function buildRealtimeSubscriptionRequests(
+  code: string,
+  tracked: TrackedStockRef,
+) {
+  if (tracked.market === 'kospi') {
+    return [{ tr_cd: 'S3_', tr_key: code }];
+  }
+
+  if (tracked.market === 'kosdaq') {
+    return [{ tr_cd: 'K3_', tr_key: code }];
+  }
+
+  return [
+    { tr_cd: 'S3_', tr_key: code },
+    { tr_cd: 'K3_', tr_key: code },
+  ];
 }
 
 export function parseRealtimeMessage(rawMessage: string): RealtimePatch[] {

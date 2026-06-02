@@ -1,19 +1,22 @@
 import { readEnv } from '../config/env';
-import { getTrackedStocks } from '../config/sectors';
+import type { TrackedStock } from '../config/sectors';
 import { RealLsRestClient } from './ls-rest-client';
+import { RealLsSectorClient } from './ls-sector-client';
 import { RealLsRealtimeClient } from './ls-websocket-client';
 import {
   MockLsRealtimeClient,
   MockLsRestClient,
 } from '../services/market-service';
 
-export function createLsClients(env = readEnv()) {
-  const trackedStocks = getTrackedStocks();
-
+export function createLsClients(
+  env = readEnv(),
+  trackedStocks: TrackedStock[] = [],
+) {
   if (env.USE_MOCK_LS === 'true') {
     return {
       restClient: new MockLsRestClient(),
       realtimeClient: new MockLsRealtimeClient(),
+      sectorClient: null,
     };
   }
 
@@ -26,6 +29,7 @@ export function createLsClients(env = readEnv()) {
       getAccessToken,
       env.LS_WS_URL,
     ),
+    sectorClient: new RealLsSectorClient(getAccessToken, env.LS_BASE_URL),
   };
 }
 
