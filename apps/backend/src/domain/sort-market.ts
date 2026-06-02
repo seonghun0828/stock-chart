@@ -56,6 +56,7 @@ export function buildMarketSnapshot(state: MarketState): MarketSnapshot {
         changeRate: stock.changeRate,
         tradeValue: stock.tradeValue,
         priceRange: {
+          previousClose: stock.previousClose,
           open: stock.open,
           high: stock.high,
           low: stock.low,

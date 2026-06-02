@@ -7,6 +7,7 @@ import type { InitialQuote, RealtimePatch } from '../ls/types';
 
 export class MarketService {
   private readonly state: MarketState;
+  private readonly listeners = new Set<(snapshot: ReturnType<MarketService['getSnapshot']>) => void>();
 
   constructor(
     private readonly restClient: LsRestClient,
@@ -22,9 +23,17 @@ export class MarketService {
 
   getHealth() {
     return {
-      status: 'degraded' as const,
-      lsAuth: 'missing' as const,
+      status: this.state.connectionStatus === 'open' ? ('ok' as const) : ('degraded' as const),
+      lsAuth: 'ready' as const,
       lsWebSocket: this.state.connectionStatus,
+    };
+  }
+
+  subscribe(listener: (snapshot: ReturnType<MarketService['getSnapshot']>) => void) {
+    this.listeners.add(listener);
+
+    return () => {
+      this.listeners.delete(listener);
     };
   }
 
@@ -35,6 +44,9 @@ export class MarketService {
         hasSnapshot: true,
       };
     }
+
+    this.state.lastUpdatedAt = new Date().toISOString();
+    this.notify();
   }
 
   applyRealtimePatch(patches: RealtimePatch[]) {
@@ -50,18 +62,31 @@ export class MarketService {
 
     this.state.lastUpdatedAt = new Date().toISOString();
     this.state.connectionStatus = 'open';
+    this.notify();
   }
 
   async connect(codes: string[]) {
+    this.state.connectionStatus = 'connecting';
     const quotes = await this.restClient.fetchInitialQuotes(codes);
     this.seed(quotes);
     await this.realtimeClient.connect(codes, (patches) => {
       this.applyRealtimePatch(patches);
     });
+    this.state.connectionStatus = 'open';
+    this.state.lastUpdatedAt = new Date().toISOString();
+    this.notify();
   }
 
   getState() {
     return this.state;
+  }
+
+  private notify() {
+    const snapshot = this.getSnapshot();
+
+    for (const listener of this.listeners) {
+      listener(snapshot);
+    }
   }
 }
 
@@ -74,6 +99,7 @@ export function applyPatchToStock(
     price: patch.price ?? stock.price,
     changeRate: patch.changeRate ?? stock.changeRate,
     tradeValue: patch.tradeValue ?? stock.tradeValue,
+    previousClose: stock.previousClose,
     open: patch.open ?? stock.open,
     high: patch.high ?? stock.high,
     low: patch.low ?? stock.low,

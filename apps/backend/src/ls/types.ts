@@ -7,6 +7,7 @@ export type InitialQuote = {
   price: number;
   changeRate: number;
   tradeValue: number;
+  previousClose: number | null;
   open: number | null;
   high: number | null;
   low: number | null;

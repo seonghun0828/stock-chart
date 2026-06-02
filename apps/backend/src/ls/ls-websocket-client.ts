@@ -51,7 +51,7 @@ export class RealLsRealtimeClient implements LsRealtimeClient {
             JSON.stringify({
               header: {
                 token,
-                tr_type: '1',
+                tr_type: '3',
               },
               body: {
                 tr_cd: tracked.market === 'kospi' ? 'S3_' : 'K3_',

@@ -18,6 +18,9 @@ const marketService: MarketServiceLike = {
       lsWebSocket: 'open',
     };
   },
+  subscribe() {
+    return () => {};
+  },
 };
 
 describe('market routes', () => {

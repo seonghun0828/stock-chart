@@ -5,6 +5,7 @@ export type StockViewModel = {
   changeRate: number;
   tradeValue: number;
   priceRange: {
+    previousClose: number | null;
     open: number | null;
     high: number | null;
     low: number | null;

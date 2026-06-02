@@ -4,6 +4,7 @@ import { z } from 'zod';
 const envSchema = z.object({
   BACKEND_HOST: z.string().default('127.0.0.1'),
   BACKEND_PORT: z.string().default('4000'),
+  FRONTEND_ORIGIN: z.string().default('http://localhost:5173'),
   LS_APP_KEY: z.string().optional(),
   LS_APP_SECRET: z.string().optional(),
   LS_BASE_URL: z.string().optional(),

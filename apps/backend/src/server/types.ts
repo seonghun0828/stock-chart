@@ -9,4 +9,5 @@ export type HealthStatus = {
 export interface MarketServiceLike {
   getSnapshot(): MarketSnapshot;
   getHealth(): HealthStatus;
+  subscribe(listener: (snapshot: MarketSnapshot) => void): () => void;
 }

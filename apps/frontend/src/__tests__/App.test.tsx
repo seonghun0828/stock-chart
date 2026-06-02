@@ -31,6 +31,7 @@ const snapshot: MarketSnapshot = {
           changeRate: 3.1,
           tradeValue: 1200,
           priceRange: {
+            previousClose: 70100,
             open: 70100,
             high: 72100,
             low: 69900,

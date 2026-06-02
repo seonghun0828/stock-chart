@@ -20,7 +20,8 @@ const server = createServer(app);
 
 createMarketWebSocketServer(server, marketService);
 
-server.listen(port, host, async () => {
-  await marketService.connect(trackedStocks.map((stock) => stock.code));
+await marketService.connect(trackedStocks.map((stock) => stock.code));
+
+server.listen(port, host, () => {
   console.log(`backend listening on http://${host}:${port}`);
 });

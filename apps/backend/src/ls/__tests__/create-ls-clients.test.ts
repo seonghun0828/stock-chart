@@ -4,7 +4,9 @@ import { createLsClients } from '../create-ls-clients';
 describe('createLsClients', () => {
   it('returns mock clients when USE_MOCK_LS is true', () => {
     const clients = createLsClients({
+      BACKEND_HOST: '127.0.0.1',
       BACKEND_PORT: '4000',
+      FRONTEND_ORIGIN: 'http://localhost:5173',
       USE_MOCK_LS: 'true',
       LS_APP_KEY: undefined,
       LS_APP_SECRET: undefined,

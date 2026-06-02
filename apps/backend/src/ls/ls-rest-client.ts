@@ -22,6 +22,7 @@ type T1101Response = {
     diff: number | string;
     volume?: number | string;
     value?: number | string;
+    jnilclose?: number | string;
     open?: number | string;
     high?: number | string;
     low?: number | string;
@@ -101,6 +102,7 @@ export function mapT1101ResponseToQuote(
     price,
     changeRate: toNumber(outBlock.diff),
     tradeValue,
+    previousClose: nullableNumber(outBlock.jnilclose),
     open: nullableNumber(outBlock.open),
     high: nullableNumber(outBlock.high),
     low: nullableNumber(outBlock.low),

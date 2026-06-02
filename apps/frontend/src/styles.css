@@ -175,11 +175,18 @@ body {
 
 .candle-range {
   position: absolute;
-  top: 6px;
+  top: 3px;
   left: 0;
   right: 0;
-  height: 2px;
+  height: 8px;
+  border-radius: 999px;
   background: rgba(30, 64, 85, 0.25);
+}
+
+.candle-wick {
+  position: absolute;
+  top: 6px;
+  height: 2px;
 }
 
 .candle-body {
@@ -191,9 +198,9 @@ body {
 
 .candle-tick {
   position: absolute;
-  top: 1px;
+  top: 3px;
   width: 2px;
-  height: 12px;
+  height: 8px;
   background: #152739;
 }
 
@@ -201,11 +208,23 @@ body {
   background: #fb2f21;
 }
 
+.candle-bar-up .candle-wick {
+  background: #fb2f21;
+}
+
 .candle-bar-down .candle-body {
   background: #2b5ee8;
 }
 
+.candle-bar-down .candle-wick {
+  background: #2b5ee8;
+}
+
 .candle-bar-flat .candle-body {
+  background: #64758a;
+}
+
+.candle-bar-flat .candle-wick {
   background: #64758a;
 }
 
@@ -214,8 +233,9 @@ body {
   position: absolute;
   left: 0;
   right: 0;
-  top: 6px;
-  height: 2px;
+  top: 3px;
+  height: 8px;
+  border-radius: 999px;
   background: rgba(30, 64, 85, 0.35);
 }
 
