@@ -30,5 +30,7 @@ export type SectorViewModel = {
 export type MarketSnapshot = {
   sectors: SectorViewModel[];
   lastUpdatedAt: string | null;
-  connectionStatus: 'connecting' | 'open' | 'closed' | 'error';
+  connectionStatus: SocketStatus;
 };
+
+export type SocketStatus = 'connecting' | 'open' | 'closed' | 'error';
