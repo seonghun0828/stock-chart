@@ -9,6 +9,9 @@ type CandleBarProps = {
   changeRate: number;
 };
 
+const LOWER_LIMIT_RATE = 0.3;
+const UPPER_LIMIT_RATE = 0.3;
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -21,28 +24,33 @@ export function CandleBar({ price, priceRange, changeRate }: CandleBarProps) {
   }
 
   const tone = changeRate > 0 ? 'up' : changeRate < 0 ? 'down' : 'flat';
-  const upperDistance = Math.abs(high - previousClose);
-  const lowerDistance = Math.abs(previousClose - low);
-  const maxDistance = Math.max(upperDistance, lowerDistance, Math.abs(price - previousClose), 1);
-  const scale = 50 / maxDistance;
-  const toCenteredPercent = (value: number) => clamp(50 + (value - previousClose) * scale, 0, 100);
+  const lowerLimit = previousClose * (1 - LOWER_LIMIT_RATE);
+  const upperLimit = previousClose * (1 + UPPER_LIMIT_RATE);
+  const span = Math.max(upperLimit - lowerLimit, 1);
+  const toPercent = (value: number) =>
+    clamp(((value - lowerLimit) / span) * 100, 0, 100);
 
-  const current = toCenteredPercent(price);
-  const openPosition = open == null ? current : toCenteredPercent(open);
+  const current = toPercent(price);
+  const openPosition = open == null ? current : toPercent(open);
   const left = Math.min(current, openPosition);
   const width = Math.max(Math.abs(current - openPosition), 4);
-  const wickLeft = toCenteredPercent(low);
-  const wickRight = toCenteredPercent(high);
+  const wickLeft = toPercent(low);
+  const wickRight = toPercent(high);
 
   return (
     <div className={`candle-bar candle-bar-${tone}`}>
-      <div className="candle-range" />
+      <div className="candle-range" data-testid="candle-range" />
       <div
         className="candle-wick"
+        data-testid="candle-wick"
         style={{ left: `${wickLeft}%`, width: `${Math.max(wickRight - wickLeft, 2)}%` }}
       />
-      <div className="candle-body" style={{ left: `${left}%`, width: `${width}%` }} />
-      <div className="candle-tick" style={{ left: '50%' }} />
+      <div
+        className="candle-body"
+        data-testid="candle-body"
+        style={{ left: `${left}%`, width: `${width}%` }}
+      />
+      <div className="candle-tick" data-testid="candle-tick" style={{ left: '50%' }} />
     </div>
   );
 }
