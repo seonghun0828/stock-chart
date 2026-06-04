@@ -84,6 +84,12 @@ function normalizeThemeStocks(
 }
 
 function compareThemeStocks(left: LsThemeStock, right: LsThemeStock) {
+  const leftHasTrade = (left.tradeValue ?? 0) > 0 ? 1 : 0;
+  const rightHasTrade = (right.tradeValue ?? 0) > 0 ? 1 : 0;
+  if (rightHasTrade !== leftHasTrade) {
+    return rightHasTrade - leftHasTrade;
+  }
+
   const marketCapGap = (right.marketCap ?? 0) - (left.marketCap ?? 0);
   if (marketCapGap !== 0) {
     return marketCapGap;

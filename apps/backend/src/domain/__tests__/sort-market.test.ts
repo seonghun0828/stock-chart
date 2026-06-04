@@ -148,4 +148,17 @@ describe('buildMarketSnapshot', () => {
 
     expect(snapshot.sectors[0].totalTradeValue).toBe(4250);
   });
+
+  it('filters out inactive stocks with zero trade value from the displayed sector list', () => {
+    const state = createFixtureState();
+    state.stocksByCode.A2.tradeValue = 0;
+
+    const snapshot = buildMarketSnapshot(state);
+
+    expect(snapshot.sectors[0].stocks.map((stock) => stock.code)).toEqual([
+      'A1',
+      'A3',
+      'A4',
+    ]);
+  });
 });

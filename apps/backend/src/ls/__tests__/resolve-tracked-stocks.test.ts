@@ -90,4 +90,24 @@ describe('resolveTrackedStocks', () => {
       createFallbackStocks(),
     );
   });
+
+  it('prioritizes theme stocks with positive trade value over inactive ones', async () => {
+    const client = new StubSectorClient(
+      [{ code: '0151', name: '증권' }],
+      {
+        '0151': [
+          { code: '001000', name: 'Inactive BigCap', marketCap: 1000, tradeValue: 0 },
+          { code: '002000', name: 'Active MidCap', marketCap: 500, tradeValue: 200 },
+          { code: '003000', name: 'Active SmallCap', marketCap: 300, tradeValue: 100 },
+        ],
+      },
+    );
+
+    const trackedStocks = await resolveTrackedStocks(client, createFallbackStocks());
+    const financeCodes = trackedStocks
+      .filter((stock) => stock.sectorId === 'finance')
+      .map((stock) => stock.code);
+
+    expect(financeCodes.slice(0, 2)).toEqual(['002000', '003000']);
+  });
 });

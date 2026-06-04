@@ -34,8 +34,8 @@ export const SECTOR_STOCKS = {
     { code: '009540', market: 'kospi' },
     { code: '010140', market: 'kospi' },
     { code: '042660', market: 'kospi' },
-    { code: '267250', market: 'kospi' },
-    { code: '340930', market: 'kospi' },
+    { code: '082740', market: 'kospi' },
+    { code: '439260', market: 'kospi' },
   ],
   defense: [
     { code: '012450', market: 'kospi' },
@@ -55,11 +55,11 @@ export const SECTOR_STOCKS = {
   ],
   powerEquipment: [
     { code: '010120', market: 'kospi' },
-    { code: '272290', market: 'kosdaq' },
+    { code: '298040', market: 'kosdaq' },
     { code: '267260', market: 'kosdaq' },
-    { code: '307950', market: 'kosdaq' },
-    { code: '017800', market: 'kosdaq' },
-    { code: '037370', market: 'kospi' },
+    { code: '000500', market: 'kosdaq' },
+    { code: '006260', market: 'kosdaq' },
+    { code: '001440', market: 'kospi' },
   ],
   finance: [
     { code: '105560', market: 'kospi' },
@@ -69,7 +69,10 @@ export const SECTOR_STOCKS = {
     { code: '024110', market: 'kospi' },
     { code: '006800', market: 'kospi' },
   ],
-} as const satisfies Record<SectorId, readonly { code: string; market: MarketCategory }[]>;
+} as const satisfies Record<
+  SectorId,
+  readonly { code: string; market: MarketCategory }[]
+>;
 
 export function getTrackedStocks() {
   return SECTOR_DEFINITIONS.flatMap((sector) =>

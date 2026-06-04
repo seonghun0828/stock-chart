@@ -32,7 +32,10 @@ export function buildMarketSnapshot(state: MarketState): MarketSnapshot {
   const sectors = SECTOR_DEFINITIONS.map((sectorDefinition, definitionIndex) => {
     const sectorStocks = Object.values(state.stocksByCode)
       .filter(
-        (stock) => stock.sectorId === sectorDefinition.id && stock.hasSnapshot,
+        (stock) =>
+          stock.sectorId === sectorDefinition.id &&
+          stock.hasSnapshot &&
+          stock.tradeValue > 0,
       )
       .sort(compareStocks);
 

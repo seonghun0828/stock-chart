@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MarketService } from '../market-service';
 import type { LsRestClient } from '../../ls/ls-rest-client';
 import type { LsRealtimeClient } from '../../ls/ls-websocket-client';
@@ -122,14 +122,6 @@ function createQuotes(): InitialQuote[] {
 }
 
 describe('MarketService', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it('keeps prior stock values when websocket patch omits some symbols', () => {
     const service = new MarketService(
       new StubRestClient(),
@@ -156,7 +148,7 @@ describe('MarketService', () => {
     expect(snapshot.sectors[1].stocks.length).toBe(4);
   });
 
-  it('batches realtime notifications within a short interval', () => {
+  it('notifies listeners immediately for each realtime patch batch', () => {
     const service = new MarketService(
       new StubRestClient(),
       new StubRealtimeClient(),
@@ -169,17 +161,13 @@ describe('MarketService', () => {
     service.applyRealtimePatch([{ code: 'A1', price: 111, changeRate: 8.1, tradeValue: 1110 }]);
     service.applyRealtimePatch([{ code: 'A2', price: 91, changeRate: 4.4, tradeValue: 910 }]);
 
-    expect(listener).not.toHaveBeenCalled();
-
-    vi.advanceTimersByTime(2999);
-    expect(listener).not.toHaveBeenCalled();
-
-    vi.advanceTimersByTime(1);
-    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledTimes(2);
 
     const snapshot = listener.mock.calls[0][0];
     expect(snapshot.sectors[0].stocks[0].code).toBe('A1');
-    expect(snapshot.sectors[0].stocks[1].code).toBe('A2');
+
+    const latestSnapshot = listener.mock.calls[1][0];
+    expect(latestSnapshot.sectors[0].stocks[1].code).toBe('A2');
   });
 
   it('marks the connection as error when the initial connect fails', async () => {
