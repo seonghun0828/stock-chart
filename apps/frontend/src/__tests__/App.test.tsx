@@ -141,6 +141,70 @@ const reorderedSnapshot: MarketSnapshot = {
   ],
 };
 
+const valueOnlySnapshot: MarketSnapshot = {
+  connectionStatus: 'open',
+  lastUpdatedAt: '2026-05-31T12:00:01.000Z',
+  sectors: [
+    {
+      id: 'semiconductor',
+      name: '반도체',
+      score: 7.5,
+      totalTradeValue: 4800,
+      headline: '반도체 대표 뉴스',
+      stocks: [
+        {
+          code: '005930',
+          name: '삼성전자',
+          price: 73000,
+          changeRate: 2.2,
+          tradeValue: 2300,
+          priceRange: {
+            previousClose: 70100,
+            open: 70200,
+            high: 73200,
+            low: 70000,
+          },
+        },
+        {
+          code: '000660',
+          name: 'SK하이닉스',
+          price: 210000,
+          changeRate: 7.5,
+          tradeValue: 2500,
+          priceRange: {
+            previousClose: 195000,
+            open: 197000,
+            high: 212000,
+            low: 194000,
+          },
+        },
+      ],
+    },
+    {
+      id: 'shipbuilding',
+      name: '조선',
+      score: 9.1,
+      totalTradeValue: 1000,
+      headline: null,
+      stocks: [
+        {
+          code: '010140',
+          name: '삼성중공업',
+          price: 20100,
+          changeRate: 9.1,
+          tradeValue: 1000,
+          priceRange: {
+            previousClose: 18000,
+            open: 18100,
+            high: 20200,
+            low: 17900,
+          },
+        },
+      ],
+    },
+  ],
+};
+
 describe('App', () => {
   beforeEach(() => {
     apiMocks.fetchMarketSnapshot.mockResolvedValue(snapshot);
@@ -221,5 +285,28 @@ describe('App', () => {
       'SK하이닉스',
       '삼성전자',
     ]);
+  });
+
+  it('does not schedule a delayed reorder when only live values change', async () => {
+    let onSnapshot: ((snapshot: MarketSnapshot) => void) | undefined;
+    apiMocks.connectMarketSocket.mockImplementation((listener: (snapshot: MarketSnapshot) => void) => {
+      onSnapshot = listener;
+      return { close: vi.fn() };
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('반도체')).toBeInTheDocument();
+    const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
+
+    act(() => {
+      onSnapshot?.(valueOnlySnapshot);
+    });
+
+    expect(screen.getByText('73,000')).toBeInTheDocument();
+    expect(screen.getByText('2,300억')).toBeInTheDocument();
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+
+    setTimeoutSpy.mockRestore();
   });
 });

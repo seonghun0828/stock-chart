@@ -56,12 +56,72 @@ function mergeLiveValues(
   };
 }
 
+function hasOrderChanged(
+  currentSnapshot: MarketSnapshot,
+  nextSnapshot: MarketSnapshot,
+) {
+  if (currentSnapshot.sectors.length !== nextSnapshot.sectors.length) {
+    return true;
+  }
+
+  for (let index = 0; index < currentSnapshot.sectors.length; index += 1) {
+    const currentSector = currentSnapshot.sectors[index];
+    const nextSector = nextSnapshot.sectors[index];
+
+    if (currentSector?.id !== nextSector?.id) {
+      return true;
+    }
+
+    if (currentSector.stocks.length !== nextSector.stocks.length) {
+      return true;
+    }
+
+    for (let stockIndex = 0; stockIndex < currentSector.stocks.length; stockIndex += 1) {
+      if (currentSector.stocks[stockIndex]?.code !== nextSector.stocks[stockIndex]?.code) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 export default function App() {
   const [snapshot, setSnapshot] = useState<MarketSnapshot>(initialSnapshot);
   const latestSnapshotRef = useRef<MarketSnapshot>(initialSnapshot);
+  const displayedSnapshotRef = useRef<MarketSnapshot>(initialSnapshot);
+  const reorderTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    displayedSnapshotRef.current = snapshot;
+  }, [snapshot]);
 
   useEffect(() => {
     let isMounted = true;
+
+    const scheduleReorder = () => {
+      if (reorderTimeoutRef.current !== null) {
+        return;
+      }
+
+      reorderTimeoutRef.current = window.setTimeout(() => {
+        reorderTimeoutRef.current = null;
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSnapshot((current) => {
+          const latestSnapshot = latestSnapshotRef.current;
+
+          if (current.sectors.length > 0 && latestSnapshot.sectors.length === 0) {
+            return current;
+          }
+
+          return latestSnapshot;
+        });
+      }, REORDER_INTERVAL_MS);
+    };
 
     fetchMarketSnapshot()
       .then((nextSnapshot) => {
@@ -78,36 +138,27 @@ export default function App() {
 
     const socket = connectMarketSocket((nextSnapshot) => {
       if (isMounted) {
-        setSnapshot((current) => {
-          if (current.sectors.length > 0 && nextSnapshot.sectors.length === 0) {
-            return current;
-          }
+        const currentSnapshot = displayedSnapshotRef.current;
 
-          latestSnapshotRef.current = nextSnapshot;
-          return mergeLiveValues(current, nextSnapshot);
-        });
+        if (currentSnapshot.sectors.length > 0 && nextSnapshot.sectors.length === 0) {
+          return;
+        }
+
+        latestSnapshotRef.current = nextSnapshot;
+        const shouldScheduleReorder = hasOrderChanged(currentSnapshot, nextSnapshot);
+        setSnapshot((current) => mergeLiveValues(current, nextSnapshot));
+
+        if (shouldScheduleReorder) {
+          scheduleReorder();
+        }
       }
     });
 
-    const reorderTimer = window.setInterval(() => {
-      if (!isMounted) {
-        return;
-      }
-
-      setSnapshot((current) => {
-        const latestSnapshot = latestSnapshotRef.current;
-
-        if (current.sectors.length > 0 && latestSnapshot.sectors.length === 0) {
-          return current;
-        }
-
-        return latestSnapshot;
-      });
-    }, REORDER_INTERVAL_MS);
-
     return () => {
       isMounted = false;
-      window.clearInterval(reorderTimer);
+      if (reorderTimeoutRef.current !== null) {
+        window.clearTimeout(reorderTimeoutRef.current);
+      }
       socket.close();
     };
   }, []);
