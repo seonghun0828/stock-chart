@@ -6,6 +6,9 @@ export interface LsRestClient {
   fetchInitialQuotes(codes: string[]): Promise<InitialQuote[]>;
 }
 
+const INITIAL_QUOTE_BATCH_SIZE = 10;
+const INITIAL_QUOTE_BATCH_DELAY_MS = 1000;
+
 type TrackedStockRef = {
   code: string;
   sectorId: SectorId;
@@ -37,6 +40,9 @@ export class RealLsRestClient implements LsRestClient {
     trackedStocks: TrackedStockRef[],
     private readonly getAccessToken: TokenProvider,
     baseUrl = readEnv().LS_BASE_URL ?? 'https://openapi.ls-sec.co.kr:8080',
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly sleep: (ms: number) => Promise<void> = (ms) =>
+      new Promise((resolve) => setTimeout(resolve, ms)),
   ) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.trackedByCode = new Map(
@@ -45,42 +51,76 @@ export class RealLsRestClient implements LsRestClient {
   }
 
   async fetchInitialQuotes(codes: string[]) {
-    const results = await Promise.allSettled(
-      codes.map(async (code) => {
-        const tracked = this.trackedByCode.get(code);
-        if (!tracked) {
-          return null;
+    const quotes: InitialQuote[] = [];
+    const failedCodes = new Set<string>();
+
+    for (let start = 0; start < codes.length; start += INITIAL_QUOTE_BATCH_SIZE) {
+      const batch = codes.slice(start, start + INITIAL_QUOTE_BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map((code) => this.fetchInitialQuote(code)),
+      );
+
+      for (const [index, result] of results.entries()) {
+        if (result.status === 'fulfilled' && result.value) {
+          quotes.push(result.value);
+          continue;
         }
 
-        const token = await this.getAccessToken();
-        const response = await fetch(`${this.baseUrl}/stock/market-data`, {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/json; charset=utf-8',
-            authorization: `Bearer ${token}`,
-            tr_cd: 't1101',
-            tr_cont: 'N',
-            tr_cont_key: '',
-          },
-          body: JSON.stringify({
-            t1101InBlock: {
-              shcode: code,
-            },
-          }),
-        });
+        failedCodes.add(batch[index] as string);
+      }
 
-        if (!response.ok) {
-          throw new Error(`t1101 request failed for ${code}: ${response.status}`);
+      if (start + INITIAL_QUOTE_BATCH_SIZE < codes.length) {
+        await this.sleep(INITIAL_QUOTE_BATCH_DELAY_MS);
+      }
+    }
+
+    if (failedCodes.size > 0) {
+      const retryResults = await Promise.allSettled(
+        Array.from(failedCodes).map((code) => this.fetchInitialQuote(code)),
+      );
+
+      failedCodes.clear();
+
+      for (const result of retryResults) {
+        if (result.status === 'fulfilled' && result.value) {
+          quotes.push(result.value);
+          continue;
         }
+      }
+    }
 
-        const payload = (await response.json()) as T1101Response;
-        return mapT1101ResponseToQuote(payload, tracked);
+    return quotes;
+  }
+
+  private async fetchInitialQuote(code: string) {
+    const tracked = this.trackedByCode.get(code);
+    if (!tracked) {
+      return null;
+    }
+
+    const token = await this.getAccessToken();
+    const response = await this.fetchImpl(`${this.baseUrl}/stock/market-data`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        authorization: `Bearer ${token}`,
+        tr_cd: 't1101',
+        tr_cont: 'N',
+        tr_cont_key: '',
+      },
+      body: JSON.stringify({
+        t1101InBlock: {
+          shcode: code,
+        },
       }),
-    );
+    });
 
-    return results.flatMap((result) =>
-      result.status === 'fulfilled' && result.value ? [result.value] : [],
-    );
+    if (!response.ok) {
+      throw new Error(`t1101 request failed for ${code}: ${response.status}`);
+    }
+
+    const payload = (await response.json()) as T1101Response;
+    return mapT1101ResponseToQuote(payload, tracked);
   }
 }
 
