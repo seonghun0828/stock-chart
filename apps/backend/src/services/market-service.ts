@@ -5,9 +5,12 @@ import type { LsRestClient } from '../ls/ls-rest-client';
 import type { LsRealtimeClient } from '../ls/ls-websocket-client';
 import type { InitialQuote, RealtimePatch } from '../ls/types';
 
+export const REALTIME_BROADCAST_INTERVAL_MS = 3000;
+
 export class MarketService {
   private readonly state: MarketState;
   private readonly listeners = new Set<(snapshot: ReturnType<MarketService['getSnapshot']>) => void>();
+  private pendingRealtimeNotification: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly restClient: LsRestClient,
@@ -62,7 +65,7 @@ export class MarketService {
 
     this.state.lastUpdatedAt = new Date().toISOString();
     this.state.connectionStatus = 'open';
-    this.notify();
+    this.scheduleRealtimeNotify();
   }
 
   async connect(codes: string[]) {
@@ -96,6 +99,17 @@ export class MarketService {
     for (const listener of this.listeners) {
       listener(snapshot);
     }
+  }
+
+  private scheduleRealtimeNotify() {
+    if (this.pendingRealtimeNotification) {
+      return;
+    }
+
+    this.pendingRealtimeNotification = setTimeout(() => {
+      this.pendingRealtimeNotification = null;
+      this.notify();
+    }, REALTIME_BROADCAST_INTERVAL_MS);
   }
 }
 
