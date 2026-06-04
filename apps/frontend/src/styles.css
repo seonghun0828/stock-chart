@@ -29,7 +29,7 @@ body {
 
 .topbar {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 1rem;
   padding: 0.5rem 0.25rem 0;
@@ -41,8 +41,10 @@ body {
   font-weight: 700;
 }
 
-.clock {
-  font-size: 1.1rem;
+.status-group {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 .status-pill {
@@ -50,11 +52,15 @@ body {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.75);
   font-size: 0.82rem;
-  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.status-market {
+  color: #26435e;
 }
 
 .status-open {
-  color: #c6342d;
+  color: #26435e;
 }
 
 .status-connecting {
@@ -63,7 +69,7 @@ body {
 
 .status-error,
 .status-closed {
-  color: #26435e;
+  color: #c6342d;
 }
 
 .sector-grid {
@@ -279,11 +285,7 @@ body {
     grid-template-columns: 1fr auto;
   }
 
-  .clock {
-    justify-self: end;
-  }
-
-  .status-pill {
+  .status-group {
     grid-column: 1 / -1;
     justify-self: start;
   }

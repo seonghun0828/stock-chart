@@ -8,10 +8,27 @@ const apiMocks = vi.hoisted(() => ({
   fetchMarketSnapshot: vi.fn(),
 }));
 
+const formatMocks = vi.hoisted(() => ({
+  marketOpen: true,
+  realtimeSessionActive: true,
+  marketLabel: '장 열림',
+}));
+
 vi.mock('../lib/api', () => ({
   connectMarketSocket: apiMocks.connectMarketSocket,
   fetchMarketSnapshot: apiMocks.fetchMarketSnapshot,
 }));
+
+vi.mock('../lib/format', async () => {
+  const actual = await vi.importActual<typeof import('../lib/format')>('../lib/format');
+
+  return {
+    ...actual,
+    isMarketOpen: () => formatMocks.marketOpen,
+    isRealtimeSessionActive: () => formatMocks.realtimeSessionActive,
+    getMarketStatusLabel: () => formatMocks.marketLabel,
+  };
+});
 
 const snapshot: MarketSnapshot = {
   connectionStatus: 'open',
@@ -207,8 +224,15 @@ const valueOnlySnapshot: MarketSnapshot = {
 
 describe('App', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+    formatMocks.marketOpen = true;
+    formatMocks.realtimeSessionActive = true;
+    formatMocks.marketLabel = '장 열림';
     apiMocks.fetchMarketSnapshot.mockResolvedValue(snapshot);
-    apiMocks.connectMarketSocket.mockReturnValue({ close: vi.fn() });
+    apiMocks.connectMarketSocket.mockImplementation((_listener, handlers) => {
+      handlers?.onOpen?.();
+      return { close: vi.fn() };
+    });
   });
 
   it('renders sector cards from the market snapshot', async () => {
@@ -216,6 +240,8 @@ describe('App', () => {
 
     expect(await screen.findByText('반도체')).toBeInTheDocument();
     expect(await screen.findByText('삼성전자')).toBeInTheDocument();
+    expect(screen.getByText('장 열림')).toBeInTheDocument();
+    expect(screen.getByText('연결됨')).toBeInTheDocument();
   });
 
   it('does not replace a populated snapshot with an empty websocket snapshot', async () => {
@@ -308,5 +334,18 @@ describe('App', () => {
     expect(setTimeoutSpy).not.toHaveBeenCalled();
 
     setTimeoutSpy.mockRestore();
+  });
+
+  it('does not open the websocket outside market hours', async () => {
+    formatMocks.marketOpen = false;
+    formatMocks.realtimeSessionActive = false;
+    formatMocks.marketLabel = '장 마감';
+
+    render(<App />);
+
+    expect(await screen.findByText('반도체')).toBeInTheDocument();
+    expect(apiMocks.connectMarketSocket).not.toHaveBeenCalled();
+    expect(screen.getByText('장 마감')).toBeInTheDocument();
+    expect(screen.getByText('연결 종료')).toBeInTheDocument();
   });
 });

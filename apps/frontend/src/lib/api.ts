@@ -11,14 +11,33 @@ export async function fetchMarketSnapshot(): Promise<MarketSnapshot> {
   return response.json();
 }
 
+type SocketLifecycleHandlers = {
+  onOpen?: () => void;
+  onClose?: () => void;
+  onError?: () => void;
+};
+
 export function connectMarketSocket(
   onSnapshot: (snapshot: MarketSnapshot) => void,
+  handlers: SocketLifecycleHandlers = {},
 ) {
   const socketUrl = import.meta.env.VITE_WS_URL ?? 'ws://localhost:4000';
   const socket = new WebSocket(socketUrl);
 
+  socket.addEventListener('open', () => {
+    handlers.onOpen?.();
+  });
+
   socket.addEventListener('message', (event) => {
     onSnapshot(JSON.parse(event.data) as MarketSnapshot);
+  });
+
+  socket.addEventListener('close', () => {
+    handlers.onClose?.();
+  });
+
+  socket.addEventListener('error', () => {
+    handlers.onError?.();
   });
 
   return socket;

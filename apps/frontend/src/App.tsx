@@ -3,7 +3,14 @@ import { BottomTicker } from './components/layout/BottomTicker';
 import { TopBar } from './components/layout/TopBar';
 import { SectorGrid } from './components/market/SectorGrid';
 import { connectMarketSocket, fetchMarketSnapshot } from './lib/api';
-import { formatClock } from './lib/format';
+import {
+  formatClock,
+  formatConnectionStatusLabel,
+  getMarketStatusLabel,
+  getNextMarketBoundary,
+  isMarketOpen,
+  isRealtimeSessionActive,
+} from './lib/format';
 import type { MarketSnapshot } from './types';
 
 const initialSnapshot: MarketSnapshot = {
@@ -88,9 +95,15 @@ function hasOrderChanged(
 
 export default function App() {
   const [snapshot, setSnapshot] = useState<MarketSnapshot>(initialSnapshot);
+  const [now, setNow] = useState(() => new Date());
+  const [socketStatus, setSocketStatus] = useState<'connecting' | 'open' | 'closed' | 'error'>(
+    () => (isRealtimeSessionActive(new Date()) ? 'connecting' : 'closed'),
+  );
   const latestSnapshotRef = useRef<MarketSnapshot>(initialSnapshot);
   const displayedSnapshotRef = useRef<MarketSnapshot>(initialSnapshot);
   const reorderTimeoutRef = useRef<number | null>(null);
+  const marketBoundaryTimeoutRef = useRef<number | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
     displayedSnapshotRef.current = snapshot;
@@ -123,6 +136,93 @@ export default function App() {
       }, REORDER_INTERVAL_MS);
     };
 
+    const disconnectSocket = () => {
+      if (socketRef.current) {
+        const currentSocket = socketRef.current;
+        socketRef.current = null;
+        currentSocket.close();
+      }
+    };
+
+    const connectSocket = () => {
+      if (!isMounted || socketRef.current || !isRealtimeSessionActive(new Date())) {
+        return;
+      }
+
+      setSocketStatus('connecting');
+      socketRef.current = connectMarketSocket(
+        (nextSnapshot) => {
+          if (isMounted) {
+            const currentSnapshot = displayedSnapshotRef.current;
+
+            if (currentSnapshot.sectors.length > 0 && nextSnapshot.sectors.length === 0) {
+              return;
+            }
+
+            latestSnapshotRef.current = nextSnapshot;
+            const shouldScheduleReorder = hasOrderChanged(currentSnapshot, nextSnapshot);
+            setSnapshot((current) => mergeLiveValues(current, nextSnapshot));
+
+            if (shouldScheduleReorder) {
+              scheduleReorder();
+            }
+          }
+        },
+        {
+          onOpen: () => {
+            if (isMounted) {
+              setSocketStatus('open');
+            }
+          },
+          onClose: () => {
+            if (socketRef.current && socketRef.current.readyState === WebSocket.CLOSED) {
+              socketRef.current = null;
+            }
+
+            if (isMounted) {
+              setSocketStatus(isMarketOpen(new Date()) ? 'closed' : 'closed');
+            }
+          },
+          onError: () => {
+            if (isMounted) {
+              setSocketStatus('error');
+            }
+          },
+        },
+      );
+    };
+
+    const syncMarketPhase = () => {
+      const currentNow = new Date();
+
+      setNow(currentNow);
+
+      if (isRealtimeSessionActive(currentNow)) {
+        connectSocket();
+      } else {
+        disconnectSocket();
+        setSocketStatus('closed');
+      }
+    };
+
+    const scheduleNextBoundary = () => {
+      if (marketBoundaryTimeoutRef.current !== null) {
+        window.clearTimeout(marketBoundaryTimeoutRef.current);
+      }
+
+      const nextBoundary = getNextMarketBoundary(new Date());
+      const delay = Math.max(0, nextBoundary.getTime() - Date.now());
+
+      marketBoundaryTimeoutRef.current = window.setTimeout(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        syncMarketPhase();
+        scheduleNextBoundary();
+      }, delay);
+    };
+
     fetchMarketSnapshot()
       .then((nextSnapshot) => {
         if (isMounted) {
@@ -132,42 +232,30 @@ export default function App() {
       })
       .catch(() => {
         if (isMounted) {
-          setSnapshot((current) => ({ ...current, connectionStatus: 'error' }));
+          setSocketStatus('error');
         }
       });
-
-    const socket = connectMarketSocket((nextSnapshot) => {
-      if (isMounted) {
-        const currentSnapshot = displayedSnapshotRef.current;
-
-        if (currentSnapshot.sectors.length > 0 && nextSnapshot.sectors.length === 0) {
-          return;
-        }
-
-        latestSnapshotRef.current = nextSnapshot;
-        const shouldScheduleReorder = hasOrderChanged(currentSnapshot, nextSnapshot);
-        setSnapshot((current) => mergeLiveValues(current, nextSnapshot));
-
-        if (shouldScheduleReorder) {
-          scheduleReorder();
-        }
-      }
-    });
+    syncMarketPhase();
+    scheduleNextBoundary();
 
     return () => {
       isMounted = false;
+      if (marketBoundaryTimeoutRef.current !== null) {
+        window.clearTimeout(marketBoundaryTimeoutRef.current);
+      }
       if (reorderTimeoutRef.current !== null) {
         window.clearTimeout(reorderTimeoutRef.current);
       }
-      socket.close();
+      disconnectSocket();
     };
   }, []);
 
   return (
     <main className="market-page">
       <TopBar
-        clockLabel={formatClock(snapshot.lastUpdatedAt)}
-        connectionStatus={snapshot.connectionStatus}
+        marketStatusLabel={getMarketStatusLabel(now)}
+        connectionStatusLabel={formatConnectionStatusLabel(socketStatus)}
+        connectionStatusTone={socketStatus}
       />
       <SectorGrid sectors={snapshot.sectors} />
       <BottomTicker lastUpdatedAt={formatClock(snapshot.lastUpdatedAt)} />
