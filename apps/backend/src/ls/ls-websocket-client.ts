@@ -3,6 +3,8 @@ import type { SectorId, MarketCategory } from '../config/sectors';
 import { readEnv } from '../config/env';
 import { WebSocket } from 'ws';
 
+const REALTIME_RECONNECT_DELAY_MS = 3000;
+
 export interface LsRealtimeClient {
   connect(
     codes: string[],
@@ -21,6 +23,9 @@ type TrackedStockRef = {
 
 export class RealLsRealtimeClient implements LsRealtimeClient {
   private socket: WebSocket | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private currentCodes: string[] = [];
+  private currentOnMessage: ((patches: RealtimePatch[]) => void) | null = null;
   private readonly trackedByCode: Map<string, TrackedStockRef>;
   private readonly wsUrl: string;
 
@@ -28,17 +33,26 @@ export class RealLsRealtimeClient implements LsRealtimeClient {
     trackedStocks: TrackedStockRef[],
     private readonly getAccessToken: TokenProvider,
     wsUrl = readEnv().LS_WS_URL ?? 'wss://openapi.ls-sec.co.kr:29443/websocket',
+    private readonly websocketFactory: (url: string) => WebSocket = (url) => new WebSocket(url),
+    private readonly scheduleTimeout: typeof setTimeout = setTimeout,
   ) {
     this.trackedByCode = new Map(trackedStocks.map((stock) => [stock.code, stock]));
     this.wsUrl = wsUrl;
   }
 
   async connect(codes: string[], onMessage: (patches: RealtimePatch[]) => void) {
+    this.currentCodes = [...codes];
+    this.currentOnMessage = onMessage;
+    await this.openSocket(codes, onMessage);
+  }
+
+  private async openSocket(codes: string[], onMessage: (patches: RealtimePatch[]) => void) {
     const token = await this.getAccessToken();
 
     await new Promise<void>((resolve, reject) => {
-      const socket = new WebSocket(this.wsUrl);
+      const socket = this.websocketFactory(this.wsUrl);
       this.socket = socket;
+      let settled = false;
 
       socket.once('open', () => {
         for (const code of codes) {
@@ -59,6 +73,7 @@ export class RealLsRealtimeClient implements LsRealtimeClient {
             );
           }
         }
+        settled = true;
         resolve();
       });
 
@@ -69,8 +84,43 @@ export class RealLsRealtimeClient implements LsRealtimeClient {
         }
       });
 
-      socket.once('error', (error) => reject(error));
+      socket.once('error', (error) => {
+        if (!settled) {
+          reject(error);
+        }
+        this.scheduleReconnect();
+      });
+
+      socket.once('close', () => {
+        if (this.socket === socket) {
+          this.socket = null;
+        }
+
+        if (!settled) {
+          reject(new Error('LS realtime socket closed before it connected'));
+        }
+
+        this.scheduleReconnect();
+      });
     });
+  }
+
+  private scheduleReconnect() {
+    if (this.reconnectTimer || !this.currentOnMessage || this.currentCodes.length === 0) {
+      return;
+    }
+
+    this.reconnectTimer = this.scheduleTimeout(() => {
+      this.reconnectTimer = null;
+
+      if (!this.currentOnMessage || this.currentCodes.length === 0) {
+        return;
+      }
+
+      void this.openSocket(this.currentCodes, this.currentOnMessage).catch(() => {
+        this.scheduleReconnect();
+      });
+    }, REALTIME_RECONNECT_DELAY_MS);
   }
 }
 
