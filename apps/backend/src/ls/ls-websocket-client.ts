@@ -4,6 +4,7 @@ import { readEnv } from '../config/env';
 import { WebSocket } from 'ws';
 
 const REALTIME_RECONNECT_DELAY_MS = 3000;
+const REALTIME_INACTIVITY_TIMEOUT_MS = 60000;
 
 export interface LsRealtimeClient {
   connect(
@@ -24,6 +25,7 @@ type TrackedStockRef = {
 export class RealLsRealtimeClient implements LsRealtimeClient {
   private socket: WebSocket | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private inactivityTimer: ReturnType<typeof setTimeout> | null = null;
   private currentCodes: string[] = [];
   private currentOnMessage: ((patches: RealtimePatch[]) => void) | null = null;
   private readonly trackedByCode: Map<string, TrackedStockRef>;
@@ -35,6 +37,7 @@ export class RealLsRealtimeClient implements LsRealtimeClient {
     wsUrl = readEnv().LS_WS_URL ?? 'wss://openapi.ls-sec.co.kr:29443/websocket',
     private readonly websocketFactory: (url: string) => WebSocket = (url) => new WebSocket(url),
     private readonly scheduleTimeout: typeof setTimeout = setTimeout,
+    private readonly clearScheduledTimeout: typeof clearTimeout = clearTimeout,
   ) {
     this.trackedByCode = new Map(trackedStocks.map((stock) => [stock.code, stock]));
     this.wsUrl = wsUrl;
@@ -74,12 +77,14 @@ export class RealLsRealtimeClient implements LsRealtimeClient {
           }
         }
         settled = true;
+        this.resetInactivityTimer();
         resolve();
       });
 
       socket.on('message', (data) => {
         const patches = parseRealtimeMessage(String(data));
         if (patches.length > 0) {
+          this.resetInactivityTimer();
           onMessage(patches);
         }
       });
@@ -88,6 +93,7 @@ export class RealLsRealtimeClient implements LsRealtimeClient {
         if (!settled) {
           reject(error);
         }
+        this.clearInactivityTimer();
         this.scheduleReconnect();
       });
 
@@ -100,6 +106,7 @@ export class RealLsRealtimeClient implements LsRealtimeClient {
           reject(new Error('LS realtime socket closed before it connected'));
         }
 
+        this.clearInactivityTimer();
         this.scheduleReconnect();
       });
     });
@@ -121,6 +128,24 @@ export class RealLsRealtimeClient implements LsRealtimeClient {
         this.scheduleReconnect();
       });
     }, REALTIME_RECONNECT_DELAY_MS);
+  }
+
+  private resetInactivityTimer() {
+    this.clearInactivityTimer();
+
+    this.inactivityTimer = this.scheduleTimeout(() => {
+      this.inactivityTimer = null;
+      this.socket?.terminate();
+      this.socket = null;
+      this.scheduleReconnect();
+    }, REALTIME_INACTIVITY_TIMEOUT_MS);
+  }
+
+  private clearInactivityTimer() {
+    if (this.inactivityTimer) {
+      this.clearScheduledTimeout(this.inactivityTimer);
+      this.inactivityTimer = null;
+    }
   }
 }
 

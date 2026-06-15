@@ -35,9 +35,10 @@ export function createLsClients(
 
 function createAccessTokenProvider(env: ReturnType<typeof readEnv>) {
   let accessToken: string | null = null;
+  let accessTokenExpiresAt = 0;
 
   return async () => {
-    if (accessToken) {
+    if (accessToken && Date.now() < accessTokenExpiresAt) {
       return accessToken;
     }
 
@@ -73,6 +74,30 @@ function createAccessTokenProvider(env: ReturnType<typeof readEnv>) {
     }
 
     accessToken = payload.access_token;
+    accessTokenExpiresAt = getNextTokenRefreshTime(Date.now());
     return accessToken;
   };
+}
+
+export function getNextTokenRefreshTime(now: number) {
+  const nowDate = new Date(now);
+  const seoulParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(nowDate);
+  const values = new Map(seoulParts.map((part) => [part.type, part.value]));
+  const year = Number(values.get('year'));
+  const month = Number(values.get('month'));
+  const day = Number(values.get('day'));
+  const hour = Number(values.get('hour'));
+  const minute = Number(values.get('minute'));
+  const totalMinutes = hour * 60 + minute;
+  const refreshDay = totalMinutes < 6 * 60 + 50 ? day : day + 1;
+
+  return Date.UTC(year, month - 1, refreshDay, 6 - 9, 50, 0);
 }
